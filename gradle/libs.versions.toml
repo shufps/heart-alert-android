@@ -15,7 +15,7 @@ review = "2.0.2"
 reviewKtx = "2.0.2"
 rxjava = "3.1.11"
 rxandroid = "3.0.2"
-polar-ble-sdk = "6.4.0"
+polar-ble-sdk = "6.16.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

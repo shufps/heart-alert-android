@@ -18,7 +18,7 @@ android {
 
     defaultConfig {
         applicationId = "com.nikashitsa.polar_alert_android"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = commitCount
         versionName = "2.0.1"
