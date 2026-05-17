@@ -10,11 +10,13 @@ import com.nikashitsa.polar_alert_android.ui.theme.Colors
 @Composable
 fun AppSwitch(
     checked: Boolean,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
     Switch(
         checked = checked,
+        enabled = enabled,
         onCheckedChange = { it ->
             val type = if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff
             haptic.performHapticFeedback(type)

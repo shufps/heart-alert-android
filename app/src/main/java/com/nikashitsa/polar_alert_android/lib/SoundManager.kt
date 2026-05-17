@@ -2,6 +2,8 @@ package com.nikashitsa.polar_alert_android.lib
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.SoundPool
 import com.nikashitsa.polar_alert_android.R
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -23,23 +25,30 @@ enum class SoundType(val resId: Int) {
 class SoundManager @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) {
+    // USAGE_MEDIA follows the active audio route exclusively (BT headphones or speaker, not both)
+    private val audioAttributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .build()
+
     private val soundPool: SoundPool
     private val soundMap = mutableMapOf<SoundType, Int>()
 
-    init {
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_GAME)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+        .setAudioAttributes(audioAttributes)
+        .setWillPauseWhenDucked(false)
+        .build()
+    private var focusHeld = false
 
+    init {
         soundPool = SoundPool.Builder()
             .setMaxStreams(5)
             .setAudioAttributes(audioAttributes)
             .build()
 
         for (type in SoundType.entries) {
-            val soundId = soundPool.load(context, type.resId, 1)
-            soundMap[type] = soundId
+            soundMap[type] = soundPool.load(context, type.resId, 1)
         }
     }
 
@@ -50,7 +59,22 @@ class SoundManager @Inject constructor(
         }
     }
 
+    fun requestAudioFocus() {
+        if (!focusHeld) {
+            audioManager.requestAudioFocus(audioFocusRequest)
+            focusHeld = true
+        }
+    }
+
+    fun abandonAudioFocus() {
+        if (focusHeld) {
+            audioManager.abandonAudioFocusRequest(audioFocusRequest)
+            focusHeld = false
+        }
+    }
+
     fun release() {
+        abandonAudioFocus()
         soundPool.release()
     }
 }

@@ -36,7 +36,6 @@ import com.nikashitsa.polar_alert_android.lib.SoundViewModel
 import com.nikashitsa.polar_alert_android.ui.components.AppSlider
 import com.nikashitsa.polar_alert_android.ui.components.AppSwitch
 import com.nikashitsa.polar_alert_android.ui.components.DevicePicker
-import com.nikashitsa.polar_alert_android.ui.components.DropdownMenuSelector
 
 @Composable
 fun SettingsScreen(
@@ -50,8 +49,8 @@ fun SettingsScreen(
     val batteryStatusFeature = bluetooth.batteryStatusFeature.collectAsState()
     val volume by settings.volume.collectAsState()
     val vibrate by settings.vibrate.collectAsState()
-    val hrMin by settings.hrMin.collectAsState()
-    val hrMax by settings.hrMax.collectAsState()
+    val soundEnabled by settings.soundEnabled.collectAsState()
+    val audioDucking by settings.audioDucking.collectAsState()
 
     BackHandler {
         onBack()
@@ -64,10 +63,10 @@ fun SettingsScreen(
         setVolume = settings::setVolume,
         vibrate = vibrate,
         setVibrate = settings::setVibrate,
-        hrMin = hrMin,
-        setHrMin = settings::setHrMin,
-        hrMax = hrMax,
-        setHrMax = settings::setHrMax,
+        soundEnabled = soundEnabled,
+        setSoundEnabled = settings::setSoundEnabled,
+        audioDucking = audioDucking,
+        setAudioDucking = settings::setAudioDucking,
         playSound = sound::play,
         onNext = onNext,
     )
@@ -82,10 +81,10 @@ fun SettingsScreenContent(
     setVolume: (Int) -> Unit = {},
     vibrate: Boolean = SettingsDefaults.VIBRATE,
     setVibrate: (Boolean) -> Unit = {},
-    hrMin: Int = SettingsDefaults.HR_MIN,
-    setHrMin: (Int) -> Unit = {},
-    hrMax: Int = SettingsDefaults.HR_MAX,
-    setHrMax: (Int) -> Unit = {},
+    soundEnabled: Boolean = SettingsDefaults.SOUND_ENABLED,
+    setSoundEnabled: (Boolean) -> Unit = {},
+    audioDucking: Boolean = SettingsDefaults.AUDIO_DUCKING,
+    setAudioDucking: (Boolean) -> Unit = {},
     playSound: (SoundType) -> Unit = {},
     onNext: () -> Unit = {}
 ) {
@@ -104,26 +103,13 @@ fun SettingsScreenContent(
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        SettingSection(title = "Heart rate") {
-            SettingRow(label = "Min") {
-                DropdownMenuSelector(
-                    hrMin,
-                    progression = 40..hrMax,
-                    setValue = { it -> setHrMin(it) }
-                )
-            }
-            SettingRow(label = "Max") {
-                DropdownMenuSelector(
-                    hrMax,
-                    progression = hrMin..240,
-                    setValue = { it -> setHrMax(it) }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(40.dp))
-
         SettingSection(title = "Alert") {
+            SettingRow(label = "Sound") {
+                AppSwitch(soundEnabled) { setSoundEnabled(it) }
+            }
+            SettingRow(label = "Audio Ducking") {
+                AppSwitch(audioDucking, enabled = soundEnabled) { setAudioDucking(it) }
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -137,7 +123,7 @@ fun SettingsScreenContent(
                     value = volume,
                     onValueChange = {
                         setVolume(it)
-                        playSound(SoundType.LOW_BEEP)
+                        if (soundEnabled) playSound(SoundType.LOW_BEEP)
                     },
                     valueRange = 0f..100f,
                     modifier = Modifier.weight(1f),
@@ -147,11 +133,8 @@ fun SettingsScreenContent(
                     contentDescription = "Volume up",
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
             SettingRow(label = "Vibration") {
-                AppSwitch(vibrate) {
-                    setVibrate(it)
-                }
+                AppSwitch(vibrate) { setVibrate(it) }
             }
         }
 
@@ -174,7 +157,7 @@ fun SettingsScreenContent(
         Spacer(modifier = Modifier.height(40.dp))
         Spacer(modifier = Modifier.weight(1f))
 
-        AppButton("Start") { onNext() }
+        AppButton("Done") { onNext() }
 
         if (showPicker) {
             DevicePicker(sheetState) {

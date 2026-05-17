@@ -23,16 +23,18 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
 
 object SettingsDefaults {
     const val VOLUME = 90
-    const val HR_MIN = 110
-    const val HR_MAX = 140
+    const val HR_MAX = 150
     const val VIBRATE = false
+    const val SOUND_ENABLED = true
+    const val AUDIO_DUCKING = false
 }
 
 object SettingsKeys {
     val volume = intPreferencesKey("volume")
-    val hrMin = intPreferencesKey("hrMin")
     val hrMax = intPreferencesKey("hrMax")
     val vibrate = booleanPreferencesKey("vibrate")
+    val soundEnabled = booleanPreferencesKey("soundEnabled")
+    val audioDucking = booleanPreferencesKey("audioDucking")
 }
 
 @Singleton
@@ -44,14 +46,17 @@ class SettingsRepository @Inject constructor(
     val volumeFlow: Flow<Int> = get(SettingsKeys.volume, SettingsDefaults.VOLUME)
     suspend fun setVolume(value: Int) = set(SettingsKeys.volume, value.coerceIn(0, 100))
 
-    val hrMinFlow: Flow<Int> = get(SettingsKeys.hrMin, SettingsDefaults.HR_MIN)
-    suspend fun setHrMin(value: Int) = set(SettingsKeys.hrMin, value)
-
     val hrMaxFlow: Flow<Int> = get(SettingsKeys.hrMax, SettingsDefaults.HR_MAX)
     suspend fun setHrMax(value: Int) = set(SettingsKeys.hrMax, value)
 
     val vibrateFlow: Flow<Boolean> = get(SettingsKeys.vibrate, SettingsDefaults.VIBRATE)
     suspend fun setVibrate(value: Boolean) = set(SettingsKeys.vibrate, value)
+
+    val soundEnabledFlow: Flow<Boolean> = get(SettingsKeys.soundEnabled, SettingsDefaults.SOUND_ENABLED)
+    suspend fun setSoundEnabled(value: Boolean) = set(SettingsKeys.soundEnabled, value)
+
+    val audioDuckingFlow: Flow<Boolean> = get(SettingsKeys.audioDucking, SettingsDefaults.AUDIO_DUCKING)
+    suspend fun setAudioDucking(value: Boolean) = set(SettingsKeys.audioDucking, value)
 
     private fun <T> get(key: Preferences.Key<T>, default: T): Flow<T> =
         dataStore.data.map { prefs -> prefs[key] ?: default }

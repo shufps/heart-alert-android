@@ -188,4 +188,11 @@ class BluetoothViewModel @Inject constructor(
     fun hrStreamStop() {
         hrDisposable?.dispose()
     }
+
+    fun disconnect() {
+        val state = _deviceConnectionState.value
+        if (state is DeviceConnectionState.Connected) {
+            try { api.disconnectFromDevice(state.address) } catch (_: PolarInvalidArgument) {}
+        }
+    }
 }

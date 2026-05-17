@@ -45,16 +45,15 @@ fun Navigation() {
         ) { currentFlow ->
             when (currentFlow) {
                 AppFlow.Connect -> ConnectScreen(
-                    onNext = { flow = AppFlow.Settings }
+                    onNext = { flow = AppFlow.Tracking }
                 )
                 AppFlow.Settings -> SettingsScreen(
-                    onBack = {
-                        activity?.moveTaskToBack(true)
-                    },
+                    onBack = { flow = AppFlow.Tracking },
                     onNext = { flow = AppFlow.Tracking },
                 )
                 AppFlow.Tracking -> TrackingScreen(
-                    onBack = { flow = AppFlow.Settings }
+                    onSettings = { flow = AppFlow.Settings },
+                    onBack = { flow = AppFlow.Connect }
                 )
             }
         }
