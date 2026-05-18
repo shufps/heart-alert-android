@@ -36,7 +36,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -66,20 +65,16 @@ import com.google.android.play.core.review.ReviewManagerFactory
 import com.nikashitsa.polar_alert_android.R
 import com.nikashitsa.polar_alert_android.lib.BluetoothViewModel
 import com.nikashitsa.polar_alert_android.lib.DeviceConnectionState
-import com.nikashitsa.polar_alert_android.lib.HrFeature
 import com.nikashitsa.polar_alert_android.lib.SettingsDefaults
 import com.nikashitsa.polar_alert_android.lib.SettingsViewModel
 import com.nikashitsa.polar_alert_android.lib.SoundType
 import com.nikashitsa.polar_alert_android.lib.SoundViewModel
 import com.nikashitsa.polar_alert_android.lib.TrackingState
-import com.nikashitsa.polar_alert_android.lib.VibrationType
-import com.nikashitsa.polar_alert_android.lib.VibrationViewModel
 import com.nikashitsa.polar_alert_android.ui.components.AppButton
 import com.nikashitsa.polar_alert_android.ui.theme.Colors
 import com.nikashitsa.polar_alert_android.ui.theme.Fonts
 import com.nikashitsa.polar_alert_android.ui.theme.HeartAlertTheme
 import kotlinx.coroutines.delay
-import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,30 +82,27 @@ fun TrackingScreen(
     bluetooth: BluetoothViewModel = hiltViewModel(),
     settings: SettingsViewModel = hiltViewModel(),
     sound: SoundViewModel = hiltViewModel(),
-    vibration: VibrationViewModel = hiltViewModel(),
     onSettings: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
     val deviceConnectionState = bluetooth.deviceConnectionState.collectAsState()
-    val hrFeature = bluetooth.hrFeature.collectAsState()
+    val bpm by bluetooth.bpm.collectAsState()
+    val trackingState by bluetooth.trackingState.collectAsState()
     val hrMax by settings.hrMax.collectAsState()
 
-    BackHandler {
-        onBack()
-    }
+    BackHandler { onBack() }
 
     TrackingScreenContent(
         deviceConnectionState = deviceConnectionState.value,
-        hrFeature = hrFeature.value,
-        hrStreamStart = bluetooth::hrStreamStart,
-        hrStreamStop = bluetooth::hrStreamStop,
-        playSound = sound::play,
+        bpm = bpm,
+        trackingState = trackingState,
         hrMax = hrMax,
         setHrMax = settings::setHrMax,
-        vibrate = vibration::vibrate,
+        startTracking = bluetooth::startTracking,
+        stopTracking = bluetooth::stopTracking,
+        playSound = sound::play,
         onSettings = onSettings,
         onStop = { bluetooth.disconnect(); onBack() },
-        onBack = onBack,
     )
 }
 
@@ -118,22 +110,25 @@ fun TrackingScreen(
 @Composable
 fun TrackingScreenContent(
     deviceConnectionState: DeviceConnectionState,
-    hrFeature: HrFeature = HrFeature(),
-    hrStreamStart: (String, (Int) -> Unit) -> Unit = { _, _ -> },
-    hrStreamStop: () -> Unit = {},
-    playSound: (SoundType) -> Unit = {},
+    bpm: Int = -1,
+    trackingState: TrackingState = TrackingState.GOOD,
     hrMax: Int = SettingsDefaults.HR_MAX,
     setHrMax: (Int) -> Unit = {},
-    vibrate: (VibrationType) -> Unit = {},
-    initialBpm: Int = -1,
+    startTracking: () -> Unit = {},
+    stopTracking: () -> Unit = {},
+    playSound: (SoundType) -> Unit = {},
     onSettings: () -> Unit = {},
     onStop: () -> Unit = {},
-    onBack: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
     var localHrMax by remember(hrMax) { mutableIntStateOf(hrMax) }
     var isPaused by rememberSaveable { mutableStateOf(false) }
+
+    // Start or stop the service based on pause state
+    LaunchedEffect(isPaused) {
+        if (isPaused) stopTracking() else startTracking()
+    }
 
     Column(
         modifier = Modifier
@@ -168,25 +163,63 @@ fun TrackingScreenContent(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        if (!isPaused) {
-            BpmView(
-                deviceConnectionState = deviceConnectionState,
-                hrFeature = hrFeature,
-                hrStreamStart = hrStreamStart,
-                hrStreamStop = hrStreamStop,
-                playSound = playSound,
-                hrMax = localHrMax,
-                setHrMax = {
-                    localHrMax = it
-                    setHrMax(it)
-                },
-                vibrate = vibrate,
-                initialBpm = initialBpm,
-            )
-        } else {
-            Text("Paused", style = Fonts.textLg, color = Colors.White.copy(alpha = 0.5f))
-            Spacer(Modifier.height(16.dp))
-            HrMaxDial(hrMax = localHrMax, onHrMaxChange = { localHrMax = it; setHrMax(it) })
+        when (deviceConnectionState) {
+            is DeviceConnectionState.Disconnected -> {
+                Text("Disconnected", style = Fonts.textLg)
+                PlaySoundRepeatedly(playSound, SoundType.DISCONNECTED)
+            }
+            is DeviceConnectionState.Connecting -> {
+                Text("Reconnecting...", style = Fonts.textLg)
+                PlaySoundRepeatedly(playSound, SoundType.RECONNECTING)
+            }
+            is DeviceConnectionState.Connected -> {
+                if (!isPaused) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.Bottom,
+                            modifier = Modifier.height(80.dp),
+                        ) {
+                            val bpmLabel = if (bpm > -1) "$bpm" else "--"
+                            Text(
+                                text = bpmLabel,
+                                style = Fonts.text2XlBold,
+                                overflow = TextOverflow.Visible,
+                                modifier = Modifier.offset(y = (-12).dp),
+                                color = trackingState.heartBeatColor,
+                            )
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                HeartIcon(trackingState)
+                                Text(
+                                    text = "BPM",
+                                    style = Fonts.textLg,
+                                    color = trackingState.heartBeatColor,
+                                )
+                            }
+                        }
+                        Text(text = trackingState.heartBeatDescription, style = Fonts.textLg)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        HrMaxDial(
+                            hrMax = localHrMax,
+                            onHrMaxChange = { localHrMax = it; setHrMax(it) },
+                            isAlarming = trackingState == TrackingState.HIGH,
+                        )
+                    }
+                } else {
+                    Text("Paused", style = Fonts.textLg, color = Colors.White.copy(alpha = 0.5f))
+                    Spacer(Modifier.height(16.dp))
+                    HrMaxDial(
+                        hrMax = localHrMax,
+                        onHrMaxChange = { localHrMax = it; setHrMax(it) },
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -204,120 +237,6 @@ private fun requestAppReview(context: Context, activity: Activity?) {
         if (task.isSuccessful && activity != null) {
             val reviewInfo = task.result
             manager.launchReviewFlow(activity, reviewInfo)
-        }
-    }
-}
-
-@Composable
-fun BpmView(
-    deviceConnectionState: DeviceConnectionState,
-    hrFeature: HrFeature,
-    hrStreamStart: (String, (Int) -> Unit) -> Unit = { _, _ -> },
-    hrStreamStop: () -> Unit = {},
-    playSound: (SoundType) -> Unit = {},
-    hrMax: Int = SettingsDefaults.HR_MAX,
-    setHrMax: (Int) -> Unit = {},
-    vibrate: (VibrationType) -> Unit = {},
-    initialBpm: Int = -1,
-) {
-    DisposableEffect(Unit) {
-        onDispose { hrStreamStop() }
-    }
-    var state by rememberSaveable { mutableStateOf(TrackingState.GOOD) }
-    var bpm by rememberSaveable { mutableIntStateOf(initialBpm) }
-    var prevConnectionState by rememberSaveable(
-        stateSaver = DeviceConnectionState.Saver
-    ) { mutableStateOf(DeviceConnectionState.Connected()) }
-    var lastTriggerTime by rememberSaveable { mutableStateOf<Date?>(null) }
-    val throttleInterval = 690
-    val hrMaxState = rememberUpdatedState(hrMax)
-
-    when (val connectionState = deviceConnectionState) {
-        is DeviceConnectionState.Disconnected -> {
-            Text("Disconnected", style = Fonts.textLg)
-            PlaySoundRepeatedly(playSound, SoundType.DISCONNECTED) {
-                prevConnectionState = DeviceConnectionState.Disconnected()
-            }
-        }
-        is DeviceConnectionState.Connecting -> {
-            Text("Reconnecting...", style = Fonts.textLg)
-            PlaySoundRepeatedly(playSound, SoundType.RECONNECTING) {
-                prevConnectionState = DeviceConnectionState.Disconnected()
-            }
-        }
-        is DeviceConnectionState.Connected -> {
-            if (hrFeature.isSupported) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    // Current BPM display
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.Bottom,
-                        modifier = Modifier.height(80.dp),
-                    ) {
-                        val bpmLabel = if (bpm > -1) "$bpm" else "--"
-                        Text(
-                            text = bpmLabel,
-                            style = Fonts.text2XlBold,
-                            overflow = TextOverflow.Visible,
-                            modifier = Modifier.offset(y = (-12).dp),
-                            color = state.heartBeatColor,
-                        )
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            HeartIcon(state)
-                            Text(
-                                text = "BPM",
-                                style = Fonts.textLg,
-                                color = state.heartBeatColor,
-                            )
-                            LaunchedEffect(Unit) {
-                                if (prevConnectionState is DeviceConnectionState.Disconnected) {
-                                    playSound(SoundType.CONNECTED)
-                                }
-
-                                hrStreamStart(connectionState.address) { hr ->
-                                    bpm = hr
-                                    val prevState = state
-                                    state = if (bpm > hrMaxState.value) TrackingState.HIGH else TrackingState.GOOD
-
-                                    val now = Date()
-                                    if (lastTriggerTime == null ||
-                                        now.time - lastTriggerTime!!.time > throttleInterval
-                                    ) {
-                                        lastTriggerTime = now
-                                        state.sound?.let { sound ->
-                                            playSound(sound)
-                                        }
-                                        state.vibration?.let { vib ->
-                                            vibrate(vib)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Text(
-                        text = state.heartBeatDescription,
-                        style = Fonts.textLg,
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    HrMaxDial(
-                        hrMax = hrMax,
-                        onHrMaxChange = setHrMax,
-                        isAlarming = state == TrackingState.HIGH,
-                    )
-                }
-            } else {
-                Text("Reconnecting...", style = Fonts.textLg)
-            }
         }
     }
 }
@@ -366,7 +285,6 @@ fun HrMaxDial(
                 val arcSize = Size(size.width - strokePx, size.height - strokePx)
                 val arcOffset = Offset(inset, inset)
 
-                // Background arc
                 drawArc(
                     color = Colors.Gray,
                     startAngle = startAngle,
@@ -376,7 +294,6 @@ fun HrMaxDial(
                     size = arcSize,
                     style = Stroke(width = strokePx, cap = StrokeCap.Round),
                 )
-                // Filled arc
                 val fraction = (hrMaxState.value - minVal).toFloat() / (maxVal - minVal)
                 drawArc(
                     color = arcColor,
@@ -407,11 +324,7 @@ fun HrMaxDial(
                     contentColor = Colors.White,
                 ),
             ) {
-                Icon(
-                    Icons.Default.Remove,
-                    contentDescription = "Decrease max HR",
-                    modifier = Modifier.size(32.dp),
-                )
+                Icon(Icons.Default.Remove, contentDescription = "Decrease max HR", modifier = Modifier.size(32.dp))
             }
             FilledIconButton(
                 onClick = { onHrMaxChange((hrMax + 1).coerceIn(minVal, maxVal)) },
@@ -421,20 +334,15 @@ fun HrMaxDial(
                     contentColor = Colors.White,
                 ),
             ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Increase max HR",
-                    modifier = Modifier.size(32.dp),
-                )
+                Icon(Icons.Default.Add, contentDescription = "Increase max HR", modifier = Modifier.size(32.dp))
             }
         }
     }
 }
 
 @Composable
-fun PlaySoundRepeatedly(playSound: (SoundType) -> Unit = {}, soundType: SoundType, onStart: () -> Unit = {}) {
+fun PlaySoundRepeatedly(playSound: (SoundType) -> Unit = {}, soundType: SoundType) {
     LaunchedEffect(Unit) {
-        onStart()
         while (true) {
             playSound(soundType)
             delay(5000)
@@ -470,8 +378,7 @@ fun TrackingScreenConnectedPreview() {
     HeartAlertTheme {
         TrackingScreenContent(
             deviceConnectionState = DeviceConnectionState.Connected(),
-            hrFeature = HrFeature(true),
-            initialBpm = 117,
+            bpm = 117,
         )
     }
 }
@@ -480,9 +387,7 @@ fun TrackingScreenConnectedPreview() {
 @Composable
 fun TrackingScreenDisconnectedPreview() {
     HeartAlertTheme {
-        TrackingScreenContent(
-            deviceConnectionState = DeviceConnectionState.Disconnected()
-        )
+        TrackingScreenContent(deviceConnectionState = DeviceConnectionState.Disconnected())
     }
 }
 
@@ -490,8 +395,6 @@ fun TrackingScreenDisconnectedPreview() {
 @Composable
 fun TrackingScreenConnectingPreview() {
     HeartAlertTheme {
-        TrackingScreenContent(
-            deviceConnectionState = DeviceConnectionState.Connecting()
-        )
+        TrackingScreenContent(deviceConnectionState = DeviceConnectionState.Connecting())
     }
 }
