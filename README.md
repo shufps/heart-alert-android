@@ -3,7 +3,7 @@
 > **Note:** This is a personal fork of [nikashitsa/heart-alert-android](https://github.com/nikashitsa/heart-alert-android) with custom modifications for my own use. It is not actively maintained. For the official app, visit the original repository.
 
 
-<img width="400" alt="image" src="https://github.com/user-attachments/assets/94c303c3-6429-4c05-bad4-1bcbb2456994" />
+<img width="250" alt="image" src="https://github.com/user-attachments/assets/94c303c3-6429-4c05-bad4-1bcbb2456994" />
 
 
 Get instant alerts when your heart rate exceeds your target — designed for hiking, running, and outdoor activities where you want to stay in zone without constantly checking your phone.
