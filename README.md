@@ -43,4 +43,4 @@ Supports most Bluetooth heart rate belts and chest strap monitors, including:
 
 The Polar H10 can connect to two devices simultaneously — use it with a sports watch for recording and this app for live alerts at the same time.
 
-[Buy me a coffee](https://www.paypal.com/donate/?hosted_button_id=DR69Z26Z8DJVE) ☕️
+[Buy the original author a coffee](https://www.paypal.com/donate/?hosted_button_id=DR69Z26Z8DJVE) ☕️
