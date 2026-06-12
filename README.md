@@ -2,7 +2,9 @@
 
 > **Note:** This is a personal fork of [nikashitsa/heart-alert-android](https://github.com/nikashitsa/heart-alert-android) with custom modifications for my own use. It is not actively maintained. For the official app, visit the original repository.
 
-![cover](https://raw.githubusercontent.com/nikashitsa/heart-alert-android/master/cover.png)
+
+<img width="250" alt="image" src="https://github.com/user-attachments/assets/94c303c3-6429-4c05-bad4-1bcbb2456994" />
+<br/>
 
 Get instant alerts when your heart rate exceeds your target — designed for hiking, running, and outdoor activities where you want to stay in zone without constantly checking your phone.
 
@@ -14,11 +16,6 @@ Get instant alerts when your heart rate exceeds your target — designed for hik
 - **Vibration alerts** — strong haptic pulses, felt through clothing
 - **Pause / Resume** — temporarily stop monitoring while staying connected
 - **Sound & vibration independently configurable**
-
-## Install
-
-[<img src="assets/googleplay.png" width="170">](https://play.google.com/store/apps/details?id=com.nikashitsa.polar_alert_android)
-[<img src="assets/izzysoft.png" width="170">](https://apt.izzysoft.de/fdroid/index/apk/com.nikashitsa.polar_alert_android)
 
 ## Usage
 
@@ -46,9 +43,4 @@ Supports most Bluetooth heart rate belts and chest strap monitors, including:
 
 The Polar H10 can connect to two devices simultaneously — use it with a sports watch for recording and this app for live alerts at the same time.
 
-## Other platforms
-
-- [iOS](https://github.com/nikashitsa/heart-alert-ios)
-- [Web](https://github.com/nikashitsa/polar-h10-alert)
-
-[Buy me a coffee](https://www.paypal.com/donate/?hosted_button_id=DR69Z26Z8DJVE) ☕️
+[Buy the original author a coffee](https://www.paypal.com/donate/?hosted_button_id=DR69Z26Z8DJVE) ☕️
