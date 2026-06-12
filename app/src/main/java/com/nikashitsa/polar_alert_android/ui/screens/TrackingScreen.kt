@@ -2,6 +2,7 @@ package com.nikashitsa.polar_alert_android.ui.screens
 
 import android.app.Activity
 import android.content.Context
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -45,8 +46,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -68,7 +69,6 @@ import com.nikashitsa.polar_alert_android.lib.DeviceConnectionState
 import com.nikashitsa.polar_alert_android.lib.SettingsDefaults
 import com.nikashitsa.polar_alert_android.lib.SettingsViewModel
 import com.nikashitsa.polar_alert_android.lib.TrackingState
-import com.nikashitsa.polar_alert_android.ui.components.AppButton
 import com.nikashitsa.polar_alert_android.ui.theme.Colors
 import com.nikashitsa.polar_alert_android.ui.theme.Fonts
 import com.nikashitsa.polar_alert_android.ui.theme.HeartAlertTheme
@@ -81,12 +81,36 @@ fun TrackingScreen(
     onSettings: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val activity = context as? Activity
     val deviceConnectionState = bluetooth.deviceConnectionState.collectAsState()
     val bpm by bluetooth.bpm.collectAsState()
     val trackingState by bluetooth.trackingState.collectAsState()
     val hrMax by settings.hrMax.collectAsState()
 
-    BackHandler { onBack() }
+    var backPressedOnce by remember { mutableStateOf(false) }
+
+    BackHandler {
+        if (backPressedOnce) {
+            requestAppReview(context, activity)
+            bluetooth.disconnect()
+            activity?.finish()
+        } else {
+            backPressedOnce = true
+            Toast.makeText(context, "Nochmal drücken zum Beenden", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(backPressedOnce) {
+        if (backPressedOnce) {
+            delay(2000)
+            backPressedOnce = false
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        bluetooth.startTracking()
+    }
 
     TrackingScreenContent(
         deviceConnectionState = deviceConnectionState.value,
@@ -94,10 +118,8 @@ fun TrackingScreen(
         trackingState = trackingState,
         hrMax = hrMax,
         setHrMax = settings::setHrMax,
-        startTracking = bluetooth::startTracking,
-        stopTracking = bluetooth::stopTracking,
         onSettings = onSettings,
-        onStop = { bluetooth.disconnect(); onBack() },
+        onStop = { requestAppReview(context, activity); bluetooth.disconnect(); onBack() },
     )
 }
 
@@ -109,20 +131,10 @@ fun TrackingScreenContent(
     trackingState: TrackingState = TrackingState.GOOD,
     hrMax: Int = SettingsDefaults.HR_MAX,
     setHrMax: (Int) -> Unit = {},
-    startTracking: () -> Unit = {},
-    stopTracking: () -> Unit = {},
     onSettings: () -> Unit = {},
     onStop: () -> Unit = {},
 ) {
-    val context = LocalContext.current
-    val activity = context as? Activity
     var localHrMax by remember(hrMax) { mutableIntStateOf(hrMax) }
-    var isPaused by rememberSaveable { mutableStateOf(false) }
-
-    // Start or stop the service based on pause state
-    LaunchedEffect(isPaused) {
-        if (isPaused) stopTracking() else startTracking()
-    }
 
     Column(
         modifier = Modifier
@@ -136,10 +148,7 @@ fun TrackingScreenContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = {
-                requestAppReview(context, activity)
-                onStop()
-            }) {
+            IconButton(onClick = onStop) {
                 Icon(
                     Icons.Default.Stop,
                     contentDescription = "Stop",
@@ -165,60 +174,47 @@ fun TrackingScreenContent(
                 Text("Reconnecting...", style = Fonts.textLg)
             }
             is DeviceConnectionState.Connected -> {
-                if (!isPaused) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.Bottom,
+                        modifier = Modifier.height(80.dp),
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.Bottom,
-                            modifier = Modifier.height(80.dp),
+                        val bpmLabel = if (bpm > -1) "$bpm" else "--"
+                        Text(
+                            text = bpmLabel,
+                            style = Fonts.text2XlBold,
+                            overflow = TextOverflow.Visible,
+                            modifier = Modifier.offset(y = (-12).dp),
+                            color = trackingState.heartBeatColor,
+                        )
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            val bpmLabel = if (bpm > -1) "$bpm" else "--"
+                            HeartIcon(trackingState)
                             Text(
-                                text = bpmLabel,
-                                style = Fonts.text2XlBold,
-                                overflow = TextOverflow.Visible,
-                                modifier = Modifier.offset(y = (-12).dp),
+                                text = "BPM",
+                                style = Fonts.textLg,
                                 color = trackingState.heartBeatColor,
                             )
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                HeartIcon(trackingState)
-                                Text(
-                                    text = "BPM",
-                                    style = Fonts.textLg,
-                                    color = trackingState.heartBeatColor,
-                                )
-                            }
                         }
-                        Text(text = trackingState.heartBeatDescription, style = Fonts.textLg)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        HrMaxDial(
-                            hrMax = localHrMax,
-                            onHrMaxChange = { localHrMax = it; setHrMax(it) },
-                            isAlarming = trackingState == TrackingState.HIGH,
-                        )
                     }
-                } else {
-                    Text("Paused", style = Fonts.textLg, color = Colors.White.copy(alpha = 0.5f))
-                    Spacer(Modifier.height(16.dp))
+                    Text(text = trackingState.heartBeatDescription, style = Fonts.textLg)
+                    Spacer(modifier = Modifier.height(8.dp))
                     HrMaxDial(
                         hrMax = localHrMax,
                         onHrMaxChange = { localHrMax = it; setHrMax(it) },
+                        isAlarming = trackingState == TrackingState.HIGH,
                     )
                 }
             }
         }
 
         Spacer(modifier = Modifier.weight(1f))
-
-        AppButton(if (isPaused) "Resume" else "Pause") {
-            isPaused = !isPaused
-        }
     }
 }
 

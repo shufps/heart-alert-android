@@ -114,6 +114,7 @@ class BluetoothViewModel @Inject constructor(
 
     fun searchForDevice() {
         Log.d(tag, "searchForDevice")
+        scanDisposable?.dispose()
         val state = _deviceConnectionState.value
         if (state is DeviceConnectionState.Connected) {
             _foundDevices.value = listOf(
