@@ -67,21 +67,17 @@ import com.nikashitsa.polar_alert_android.lib.BluetoothViewModel
 import com.nikashitsa.polar_alert_android.lib.DeviceConnectionState
 import com.nikashitsa.polar_alert_android.lib.SettingsDefaults
 import com.nikashitsa.polar_alert_android.lib.SettingsViewModel
-import com.nikashitsa.polar_alert_android.lib.SoundType
-import com.nikashitsa.polar_alert_android.lib.SoundViewModel
 import com.nikashitsa.polar_alert_android.lib.TrackingState
 import com.nikashitsa.polar_alert_android.ui.components.AppButton
 import com.nikashitsa.polar_alert_android.ui.theme.Colors
 import com.nikashitsa.polar_alert_android.ui.theme.Fonts
 import com.nikashitsa.polar_alert_android.ui.theme.HeartAlertTheme
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrackingScreen(
     bluetooth: BluetoothViewModel = hiltViewModel(),
     settings: SettingsViewModel = hiltViewModel(),
-    sound: SoundViewModel = hiltViewModel(),
     onSettings: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
@@ -100,7 +96,6 @@ fun TrackingScreen(
         setHrMax = settings::setHrMax,
         startTracking = bluetooth::startTracking,
         stopTracking = bluetooth::stopTracking,
-        playSound = sound::play,
         onSettings = onSettings,
         onStop = { bluetooth.disconnect(); onBack() },
     )
@@ -116,7 +111,6 @@ fun TrackingScreenContent(
     setHrMax: (Int) -> Unit = {},
     startTracking: () -> Unit = {},
     stopTracking: () -> Unit = {},
-    playSound: (SoundType) -> Unit = {},
     onSettings: () -> Unit = {},
     onStop: () -> Unit = {},
 ) {
@@ -166,11 +160,9 @@ fun TrackingScreenContent(
         when (deviceConnectionState) {
             is DeviceConnectionState.Disconnected -> {
                 Text("Disconnected", style = Fonts.textLg)
-                PlaySoundRepeatedly(playSound, SoundType.DISCONNECTED)
             }
             is DeviceConnectionState.Connecting -> {
                 Text("Reconnecting...", style = Fonts.textLg)
-                PlaySoundRepeatedly(playSound, SoundType.RECONNECTING)
             }
             is DeviceConnectionState.Connected -> {
                 if (!isPaused) {
@@ -336,16 +328,6 @@ fun HrMaxDial(
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Increase max HR", modifier = Modifier.size(32.dp))
             }
-        }
-    }
-}
-
-@Composable
-fun PlaySoundRepeatedly(playSound: (SoundType) -> Unit = {}, soundType: SoundType) {
-    LaunchedEffect(Unit) {
-        while (true) {
-            playSound(soundType)
-            delay(5000)
         }
     }
 }

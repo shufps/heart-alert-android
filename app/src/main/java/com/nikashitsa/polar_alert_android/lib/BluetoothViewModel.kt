@@ -88,6 +88,7 @@ class BluetoothViewModel @Inject constructor(
                 when (feature) {
                     PolarBleApi.PolarBleSdkFeature.FEATURE_HR -> {
                         _hrFeature.value = HrFeature(true)
+                        if (trackingRepository.isActive) startTracking()
                     }
                     PolarBleApi.PolarBleSdkFeature.FEATURE_BATTERY_INFO -> {
                         _batteryStatusFeature.value = BatteryStatusFeature(true)
@@ -178,15 +179,18 @@ class BluetoothViewModel @Inject constructor(
     fun startTracking() {
         val state = _deviceConnectionState.value
         if (state is DeviceConnectionState.Connected) {
+            trackingRepository.isActive = true
             context.startForegroundService(HeartAlertService.startIntent(context, state.address))
         }
     }
 
     fun stopTracking() {
+        trackingRepository.isActive = false
         context.stopService(android.content.Intent(context, HeartAlertService::class.java))
     }
 
     fun disconnect() {
+        trackingRepository.isActive = false
         stopTracking()
         val state = _deviceConnectionState.value
         if (state is DeviceConnectionState.Connected) {

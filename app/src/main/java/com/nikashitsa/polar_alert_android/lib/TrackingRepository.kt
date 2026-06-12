@@ -13,6 +13,8 @@ class TrackingRepository @Inject constructor() {
     private val _state = MutableStateFlow(TrackingState.GOOD)
     val state: StateFlow<TrackingState> = _state
 
+    var isActive: Boolean = false
+
     fun update(bpm: Int, state: TrackingState) {
         _bpm.value = bpm
         _state.value = state
