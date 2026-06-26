@@ -50,12 +50,18 @@ class HeartAlertService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID = "heart_alert"
         const val ACTION_START = "com.nikashitsa.ACTION_START"
+        const val ACTION_STOP = "com.nikashitsa.ACTION_STOP"
         const val EXTRA_ADDRESS = "address"
 
         fun startIntent(context: Context, address: String) =
             Intent(context, HeartAlertService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_ADDRESS, address)
+            }
+
+        fun stopIntent(context: Context) =
+            Intent(context, HeartAlertService::class.java).apply {
+                action = ACTION_STOP
             }
     }
 
@@ -65,10 +71,16 @@ class HeartAlertService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_START) {
-            val address = intent.getStringExtra(EXTRA_ADDRESS) ?: return START_NOT_STICKY
-            startForeground(NOTIFICATION_ID, buildNotification("Monitoring..."))
-            startStream(address)
+        when (intent?.action) {
+            ACTION_START -> {
+                val address = intent.getStringExtra(EXTRA_ADDRESS) ?: return START_NOT_STICKY
+                startForeground(NOTIFICATION_ID, buildNotification("Monitoring..."))
+                startStream(address)
+            }
+            ACTION_STOP -> {
+                trackingRepository.isActive = false
+                stopSelf()
+            }
         }
         return START_NOT_STICKY
     }
@@ -123,6 +135,7 @@ class HeartAlertService : Service() {
     }
 
     override fun onDestroy() {
+        trackingRepository.isActive = false
         hrDisposable?.dispose()
         serviceScope.cancel()
         trackingRepository.reset()
@@ -140,17 +153,23 @@ class HeartAlertService : Service() {
     }
 
     private fun buildNotification(text: String): Notification {
-        val pi = PendingIntent.getActivity(
+        val openPi = PendingIntent.getActivity(
             this, 0,
             Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val stopPi = PendingIntent.getService(
+            this, 1,
+            stopIntent(this),
             PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Heart Alert")
             .setContentText(text)
             .setSmallIcon(R.drawable.heart)
-            .setContentIntent(pi)
+            .setContentIntent(openPi)
             .setOngoing(true)
+            .addAction(R.drawable.heart, "Stop", stopPi)
             .build()
     }
 

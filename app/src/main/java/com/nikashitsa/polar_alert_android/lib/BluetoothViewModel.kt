@@ -53,6 +53,7 @@ class BluetoothViewModel @Inject constructor(
 
     val bpm: StateFlow<Int> = trackingRepository.bpm
     val trackingState: StateFlow<TrackingState> = trackingRepository.state
+    val isTrackingActive: Boolean get() = trackingRepository.isActive
 
     private var scanDisposable: Disposable? = null
 
