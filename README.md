@@ -6,15 +6,14 @@
 <img width="250" alt="image" src="https://github.com/user-attachments/assets/94c303c3-6429-4c05-bad4-1bcbb2456994" />
 <br/>
 
-Get instant alerts when your heart rate exceeds your target — designed for hiking, running, and outdoor activities where you want to stay in zone without constantly checking your phone.
+Get instant alerts when your heart rate exceeds your target — designed for hiking, running, and outdoor activities where you want to stay below a max BPM without constantly checking your phone.
 
 ## Features
 
-- **Live max BPM dial** — adjust your target on the fly without pausing
+- **Live max BPM dial** — adjust your target on the fly without stopping
 - **Background monitoring** — alerts work with the screen off, phone in your pocket
 - **Audio ducking** — alert sounds play over music/audiobooks without interrupting them
 - **Vibration alerts** — strong haptic pulses, felt through clothing
-- **Pause / Resume** — temporarily stop monitoring while staying connected
 - **Sound & vibration independently configurable**
 
 ## Usage
@@ -23,8 +22,8 @@ Get instant alerts when your heart rate exceeds your target — designed for hik
 2. Set your max BPM using the dial (default: 150)
 3. Put your phone in your pocket — monitoring runs in the background
 4. Adjust the max BPM live at any time by dragging the dial or tapping +/−
-5. Tap **Pause** to temporarily stop alerts, **Resume** to continue
-6. Tap ⏹ to stop and disconnect
+5. Press **back twice** to stop monitoring and close the app
+6. Or tap **Stop** in the system notification to stop the service without opening the app
 
 ## Settings
 
