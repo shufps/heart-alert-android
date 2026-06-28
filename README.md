@@ -6,7 +6,7 @@
 <img width="250" alt="image" src="https://github.com/user-attachments/assets/94c303c3-6429-4c05-bad4-1bcbb2456994" />
 <br/>
 
-Get instant alerts when your heart rate exceeds your target — designed for hiking, running, and outdoor activities where you want to stay below a max BPM without constantly checking your phone.
+Get instant alerts when your heart rate exceeds your target — designed for hiking, running, and outdoor activities where you want to stay below a max BPM without constantly checking your phone. Unlike most sports watches (including the Polar Pacer Pro), the threshold can be adjusted live during an activity.
 
 ## Features
 
