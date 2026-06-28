@@ -1,19 +1,22 @@
 package com.nikashitsa.polar_alert_android.lib
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nikashitsa.polar_alert_android.HeartAlertService
 import com.polar.androidcommunications.api.ble.model.DisInfo
 import com.polar.sdk.api.PolarBleApi
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import com.polar.sdk.api.PolarBleApiCallback
 import com.polar.sdk.api.errors.PolarInvalidArgument
 import com.polar.sdk.api.model.PolarDeviceInfo
 import com.polar.sdk.api.model.PolarHealthThermometerData
-import com.polar.sdk.api.model.PolarHrData
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
 import kotlinx.coroutines.flow.filter
@@ -24,7 +27,9 @@ import java.util.UUID
 
 @HiltViewModel
 class BluetoothViewModel @Inject constructor(
-    private val api: PolarBleApi
+    private val api: PolarBleApi,
+    private val trackingRepository: TrackingRepository,
+    @ApplicationContext private val context: Context,
 ): ViewModel() {
 
     private val tag = "BluetoothViewModel"
@@ -46,12 +51,15 @@ class BluetoothViewModel @Inject constructor(
     private val _hrFeature = MutableStateFlow(HrFeature())
     val hrFeature = _hrFeature.asStateFlow()
 
+    val bpm: StateFlow<Int> = trackingRepository.bpm
+    val trackingState: StateFlow<TrackingState> = trackingRepository.state
+    val isTrackingActive: Boolean get() = trackingRepository.isActive
+
     private var scanDisposable: Disposable? = null
-    private var hrDisposable: Disposable? = null
 
     init {
         api.setPolarFilter(false)
-        api.setApiCallback(object: PolarBleApiCallback() {
+        api.setApiCallback(object : PolarBleApiCallback() {
 
             override fun blePowerStateChanged(powered: Boolean) {
                 Log.d(tag, "BLE power: $powered")
@@ -62,6 +70,7 @@ class BluetoothViewModel @Inject constructor(
                 Log.d(tag, "CONNECTED: ${polarDeviceInfo.address}")
                 _deviceConnectionState.value = DeviceConnectionState.Connected(polarDeviceInfo.address)
                 _deviceName.value = polarDeviceInfo.name
+                trackingRepository.connectedAddress = polarDeviceInfo.address
             }
 
             override fun deviceConnecting(polarDeviceInfo: PolarDeviceInfo) {
@@ -81,6 +90,7 @@ class BluetoothViewModel @Inject constructor(
                 when (feature) {
                     PolarBleApi.PolarBleSdkFeature.FEATURE_HR -> {
                         _hrFeature.value = HrFeature(true)
+                        if (trackingRepository.isActive) startTracking()
                     }
                     PolarBleApi.PolarBleSdkFeature.FEATURE_BATTERY_INFO -> {
                         _batteryStatusFeature.value = BatteryStatusFeature(true)
@@ -102,14 +112,23 @@ class BluetoothViewModel @Inject constructor(
                 _batteryStatusFeature.value = BatteryStatusFeature(true, level)
             }
         })
+
+        // If service is still running after Activity restart, re-trigger the connection
+        // callbacks by reconnecting to the already-connected device.
+        trackingRepository.connectedAddress?.let { address ->
+            if (trackingRepository.isActive) {
+                try { api.connectToDevice(address) } catch (_: PolarInvalidArgument) {}
+            }
+        }
     }
 
     fun searchForDevice() {
         Log.d(tag, "searchForDevice")
+        scanDisposable?.dispose()
         val state = _deviceConnectionState.value
         if (state is DeviceConnectionState.Connected) {
             _foundDevices.value = listOf(
-                PolarDeviceInfo("", state.address, 0,_deviceName.value, true,)
+                PolarDeviceInfo("", state.address, 0, _deviceName.value, true)
             )
         }
         scanDisposable = api.searchForDevice()
@@ -168,24 +187,26 @@ class BluetoothViewModel @Inject constructor(
         }
     }
 
-    fun hrStreamStart(address: String, onNext: (Int) -> Unit) {
-        if (hrDisposable?.isDisposed == false) return
-        hrDisposable = api.startHrStreaming(address)
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(
-                { hrData: PolarHrData ->
-                    for (sample in hrData.samples) {
-                        onNext(sample.hr)
-                    }
-                },
-                { error: Throwable ->
-                    Log.e(tag, "HR stream failed. Reason $error")
-                },
-                { Log.d(tag, "HR stream complete") }
-            )
+    fun startTracking() {
+        val state = _deviceConnectionState.value
+        if (state is DeviceConnectionState.Connected) {
+            trackingRepository.isActive = true
+            context.startForegroundService(HeartAlertService.startIntent(context, state.address))
+        }
     }
 
-    fun hrStreamStop() {
-        hrDisposable?.dispose()
+    fun stopTracking() {
+        trackingRepository.isActive = false
+        context.stopService(android.content.Intent(context, HeartAlertService::class.java))
+    }
+
+    fun disconnect() {
+        trackingRepository.isActive = false
+        trackingRepository.connectedAddress = null
+        stopTracking()
+        val state = _deviceConnectionState.value
+        if (state is DeviceConnectionState.Connected) {
+            try { api.disconnectFromDevice(state.address) } catch (_: PolarInvalidArgument) {}
+        }
     }
 }

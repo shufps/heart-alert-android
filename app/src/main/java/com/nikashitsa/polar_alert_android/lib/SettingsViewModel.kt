@@ -16,24 +16,28 @@ class SettingsViewModel @Inject constructor(
 
     private val _volume = MutableStateFlow<Int>(SettingsDefaults.VOLUME)
     val volume: StateFlow<Int> = _volume
-    private val _hrMin = MutableStateFlow<Int>(SettingsDefaults.HR_MIN)
-    val hrMin: StateFlow<Int> = _hrMin
     private val _hrMax = MutableStateFlow<Int>(SettingsDefaults.HR_MAX)
     val hrMax: StateFlow<Int> = _hrMax
     private val _vibrate = MutableStateFlow<Boolean>(SettingsDefaults.VIBRATE)
     val vibrate: StateFlow<Boolean> = _vibrate
+    private val _soundEnabled = MutableStateFlow<Boolean>(SettingsDefaults.SOUND_ENABLED)
+    val soundEnabled: StateFlow<Boolean> = _soundEnabled
+    private val _audioDucking = MutableStateFlow<Boolean>(SettingsDefaults.AUDIO_DUCKING)
+    val audioDucking: StateFlow<Boolean> = _audioDucking
 
     init {
         observe(repository.volumeFlow, _volume)
-        observe(repository.hrMinFlow, _hrMin)
         observe(repository.hrMaxFlow, _hrMax)
         observe(repository.vibrateFlow, _vibrate)
+        observe(repository.soundEnabledFlow, _soundEnabled)
+        observe(repository.audioDuckingFlow, _audioDucking)
     }
 
     fun setVolume(value: Int) = update { repository.setVolume(value) }
-    fun setHrMin(value: Int) = update { repository.setHrMin(value) }
     fun setHrMax(value: Int) = update { repository.setHrMax(value) }
     fun setVibrate(value: Boolean) = update { repository.setVibrate(value) }
+    fun setSoundEnabled(value: Boolean) = update { repository.setSoundEnabled(value) }
+    fun setAudioDucking(value: Boolean) = update { repository.setAudioDucking(value) }
 
     private fun <T> observe(flow: Flow<T>, state: MutableStateFlow<T>) {
         viewModelScope.launch {

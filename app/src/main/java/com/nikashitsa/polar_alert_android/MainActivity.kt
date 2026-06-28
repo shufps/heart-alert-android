@@ -27,14 +27,18 @@ class MainActivity: ComponentActivity() {
     }
 
     private fun requestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT), 1)
-            } else {
-                requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
-            }
-        } else {
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), 1)
+        val permissions = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        } else {
+            permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+        if (permissions.isNotEmpty()) requestPermissions(permissions.toTypedArray(), 1)
     }
 }

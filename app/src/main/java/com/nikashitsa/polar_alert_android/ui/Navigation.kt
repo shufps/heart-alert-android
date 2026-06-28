@@ -17,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.nikashitsa.polar_alert_android.lib.BluetoothViewModel
 import com.nikashitsa.polar_alert_android.ui.screens.*
 import com.nikashitsa.polar_alert_android.ui.theme.*
 
@@ -28,7 +30,10 @@ enum class AppFlow {
 
 @Composable
 fun Navigation() {
-    var flow by rememberSaveable { mutableStateOf(AppFlow.Connect) }
+    val bluetooth: BluetoothViewModel = hiltViewModel()
+    var flow by rememberSaveable {
+        mutableStateOf(if (bluetooth.isTrackingActive) AppFlow.Tracking else AppFlow.Connect)
+    }
     val context = LocalContext.current
     val activity = context as? Activity
 
@@ -45,16 +50,15 @@ fun Navigation() {
         ) { currentFlow ->
             when (currentFlow) {
                 AppFlow.Connect -> ConnectScreen(
-                    onNext = { flow = AppFlow.Settings }
+                    onNext = { flow = AppFlow.Tracking }
                 )
                 AppFlow.Settings -> SettingsScreen(
-                    onBack = {
-                        activity?.moveTaskToBack(true)
-                    },
+                    onBack = { flow = AppFlow.Tracking },
                     onNext = { flow = AppFlow.Tracking },
                 )
                 AppFlow.Tracking -> TrackingScreen(
-                    onBack = { flow = AppFlow.Settings }
+                    onSettings = { flow = AppFlow.Settings },
+                    onBack = { flow = AppFlow.Connect }
                 )
             }
         }
