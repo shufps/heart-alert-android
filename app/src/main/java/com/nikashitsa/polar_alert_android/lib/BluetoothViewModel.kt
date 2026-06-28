@@ -59,7 +59,7 @@ class BluetoothViewModel @Inject constructor(
 
     init {
         api.setPolarFilter(false)
-        api.setApiCallback(object: PolarBleApiCallback() {
+        api.setApiCallback(object : PolarBleApiCallback() {
 
             override fun blePowerStateChanged(powered: Boolean) {
                 Log.d(tag, "BLE power: $powered")
@@ -70,6 +70,7 @@ class BluetoothViewModel @Inject constructor(
                 Log.d(tag, "CONNECTED: ${polarDeviceInfo.address}")
                 _deviceConnectionState.value = DeviceConnectionState.Connected(polarDeviceInfo.address)
                 _deviceName.value = polarDeviceInfo.name
+                trackingRepository.connectedAddress = polarDeviceInfo.address
             }
 
             override fun deviceConnecting(polarDeviceInfo: PolarDeviceInfo) {
@@ -111,6 +112,14 @@ class BluetoothViewModel @Inject constructor(
                 _batteryStatusFeature.value = BatteryStatusFeature(true, level)
             }
         })
+
+        // If service is still running after Activity restart, re-trigger the connection
+        // callbacks by reconnecting to the already-connected device.
+        trackingRepository.connectedAddress?.let { address ->
+            if (trackingRepository.isActive) {
+                try { api.connectToDevice(address) } catch (_: PolarInvalidArgument) {}
+            }
+        }
     }
 
     fun searchForDevice() {
@@ -193,6 +202,7 @@ class BluetoothViewModel @Inject constructor(
 
     fun disconnect() {
         trackingRepository.isActive = false
+        trackingRepository.connectedAddress = null
         stopTracking()
         val state = _deviceConnectionState.value
         if (state is DeviceConnectionState.Connected) {

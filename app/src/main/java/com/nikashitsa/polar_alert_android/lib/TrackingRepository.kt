@@ -14,6 +14,7 @@ class TrackingRepository @Inject constructor() {
     val state: StateFlow<TrackingState> = _state
 
     var isActive: Boolean = false
+    var connectedAddress: String? = null
 
     fun update(bpm: Int, state: TrackingState) {
         _bpm.value = bpm
